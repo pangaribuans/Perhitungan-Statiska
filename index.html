@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kalkulator Statistika Galat dan Korelasi</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F2F5F7;--surf:#FFFFFF;--ink:#14232E;--mute:#5B6B77;--line:#D5DDE3;--acc:#0F7C8A;--acc2:#B86E00;--bad:#B3261E;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0F1A21;--surf:#16252E;--ink:#E6EEF2;--mute:#92A4AF;--line:#2A3B46;--acc:#4CC3D1;--acc2:#F0A93B;--bad:#FF8A80}}
+:root[data-theme="dark"]{--bg:#0F1A21;--surf:#16252E;--ink:#E6EEF2;--mute:#92A4AF;--line:#2A3B46;--acc:#4CC3D1;--acc2:#F0A93B;--bad:#FF8A80}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:860px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.5rem;line-height:1.25;margin:0 0 4px;font-weight:600}
+.sub{color:var(--mute);margin:0 0 20px;max-width:60ch}
+.inputs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:block;font-weight:600;font-size:.9rem;margin-bottom:6px}
+label span{font-weight:400;color:var(--mute)}
+textarea{width:100%;height:170px;resize:vertical;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--surf);color:var(--ink);font:inherit;font-variant-numeric:tabular-nums}
+textarea:focus-visible,button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+button{font:inherit;font-weight:600;padding:8px 14px;border-radius:6px;border:1px solid var(--line);background:var(--surf);color:var(--ink);cursor:pointer}
+button.main{background:var(--acc);border-color:var(--acc);color:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) button.main{color:#08222A}}
+#msg{min-height:1.5em;color:var(--bad);font-size:.9rem;margin:4px 0 0}
+#out{margin-top:16px}
+.hero{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+.hero b{font-size:2.6rem;line-height:1;color:var(--acc);font-variant-numeric:tabular-nums}
+.hero span{color:var(--mute)}
+.wrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surf)}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+th{font-size:.85rem;color:var(--mute);font-weight:600}
+td.v{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;text-align:right}
+td.f{color:var(--mute);font-size:.85rem}
+.plot{margin-top:18px}
+svg{display:block;width:100%;max-width:420px;height:auto;background:var(--surf);border:1px solid var(--line);border-radius:6px}
+.leg{color:var(--mute);font-size:.85rem;margin:6px 0 0}
+.note{color:var(--mute);font-size:.85rem;margin-top:18px;max-width:70ch}
+@media (max-width:560px){.inputs{grid-template-columns:1fr}textarea{height:130px}}
+</style>
+</head>
+<body>
+<main>
+<h1>Kalkulator Statistika Galat dan Korelasi</h1>
+<p class="sub">Bandingkan data observasi dengan data prediksi: korelasi Pearson R, MAE, RMSE, Bias, dan ukuran lain dihitung otomatis.</p>
+
+<div class="inputs">
+  <div><label for="x">Observasi (X) <span>satu angka per baris</span></label><textarea id="x" inputmode="decimal" spellcheck="false" placeholder="12,5&#10;14,1&#10;15,8"></textarea></div>
+  <div><label for="y">Prediksi (Y) <span>jumlah sama dengan X</span></label><textarea id="y" inputmode="decimal" spellcheck="false" placeholder="12,9&#10;13,6&#10;16,2"></textarea></div>
+</div>
+<div class="bar">
+  <button class="main" id="hit">Hitung</button>
+  <button id="ex">Isi data contoh</button>
+  <button id="cp">Salin hasil</button>
+  <button id="clr">Kosongkan</button>
+</div>
+<p id="msg" role="alert"></p>
+
+<section id="out" hidden>
+  <div class="hero"><b id="hr">0</b><span>korelasi Pearson R (sampel)</span></div>
+  <div class="wrap"><table>
+    <thead><tr><th>Ukuran</th><th style="text-align:right">Nilai</th><th>Rumus / arti</th></tr></thead>
+    <tbody id="tb"></tbody>
+  </table></div>
+  <div class="plot">
+    <svg id="sv" viewBox="0 0 400 400" role="img" aria-label="Diagram pencar observasi terhadap prediksi"></svg>
+    <p class="leg">Garis putus-putus: kecocokan sempurna (Y = X). Garis solid: regresi linear.</p>
+  </div>
+</section>
+
+<p class="note">Bias dihitung sebagai rata-rata (Y − X), jadi nilai positif berarti prediksi cenderung lebih tinggi dari observasi. Angka boleh dipisah baris baru, spasi, tab, titik koma, atau koma. Koma desimal ala Indonesia (12,5) dikenali selama angka dipisah baris, spasi, atau tab. Jika data ditempel dari dua kolom Excel ke kotak X saja, kolom kedua otomatis dipakai sebagai Y.</p>
+</main>
+
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)};
+var nf=new Intl.NumberFormat('id-ID',{minimumFractionDigits:4,maximumFractionDigits:4});
+function fmt(v){return isFinite(v)?nf.format(v):'–'}
+
+function parse(t){
+  var out=[],bad=0;
+  t.split(/[\n\r\t; ]+/).forEach(function(s){
+    s=s.trim();if(!s)return;
+    if(s.indexOf(',')>-1&&s.indexOf('.')>-1)s=s.replace(/\./g,'');
+    s=s.replace(',','.');
+    var n=Number(s);
+    if(isNaN(n))bad++;else out.push(n);
+  });
+  return {a:out,bad:bad};
+}
+
+function stats(x,y){
+  var n=x.length,i,sx=0,sy=0;
+  for(i=0;i<n;i++){sx+=x[i];sy+=y[i]}
+  var mx=sx/n,my=sy/n;
+  var sxx=0,syy=0,sxy=0,se=0,sae=0,sse=0,sape=0,cape=0,den=0;
+  for(i=0;i<n;i++){
+    var dx=x[i]-mx,dy=y[i]-my,e=y[i]-x[i];
+    sxx+=dx*dx;syy+=dy*dy;sxy+=dx*dy;
+    se+=e;sae+=Math.abs(e);sse+=e*e;
+    if(x[i]!==0){sape+=Math.abs(e/x[i]);cape++}
+    den+=Math.pow(Math.abs(y[i]-mx)+Math.abs(x[i]-mx),2);
+  }
+  var bias=se/n,mse=sse/n;
+  var r=sxy/Math.sqrt(sxx*syy);
+  var b=sxy/sxx,a=my-b*mx;
+  var sde=n>1?Math.sqrt((sse-n*bias*bias)/(n-1)):NaN;
+  return {n:n,mx:mx,my:my,sdx:n>1?Math.sqrt(sxx/(n-1)):NaN,sdy:n>1?Math.sqrt(syy/(n-1)):NaN,
+    r:r,r2:r*r,a:a,b:b,bias:bias,mae:sae/n,mse:mse,rmse:Math.sqrt(mse),sde:sde,
+    mape:cape?sape/cape*100:NaN,nse:1-sse/sxx,d:1-sse/den,cape:cape};
+}
+
+var rows=function(s){return [
+ ['Jumlah data (n)',String(s.n),'pasangan X dan Y'],
+ ['Rata-rata X',fmt(s.mx),'Σx / n'],
+ ['Rata-rata Y',fmt(s.my),'Σy / n'],
+ ['Simpangan baku X',fmt(s.sdx),'sampel, penyebut n − 1'],
+ ['Simpangan baku Y',fmt(s.sdy),'sampel, penyebut n − 1'],
+ ['Pearson R',fmt(s.r),'Σ(x−x̄)(y−ȳ) / √[Σ(x−x̄)² · Σ(y−ȳ)²]'],
+ ['R² (determinasi)',fmt(s.r2),'kuadrat Pearson R'],
+ ['Bias (MBE)',fmt(s.bias),'Σ(y−x) / n'],
+ ['MAE',fmt(s.mae),'Σ|y−x| / n'],
+ ['MSE',fmt(s.mse),'Σ(y−x)² / n'],
+ ['RMSE',fmt(s.rmse),'√MSE'],
+ ['Simpangan baku galat',fmt(s.sde),'sebaran (y−x) di sekitar Bias, n − 1'],
+ ['MAPE (%)',fmt(s.mape),'Σ|(y−x)/x| / n × 100'+(s.cape<s.n?' (data dengan X = 0 dilewati)':'')],
+ ['Nash–Sutcliffe (NSE)',fmt(s.nse),'1 − Σ(y−x)² / Σ(x−x̄)²; 1 = sempurna'],
+ ['Indeks Willmott (d)',fmt(s.d),'0 sampai 1; 1 = sempurna'],
+ ['Regresi Y = a + bX',fmt(s.a)+' + '+fmt(s.b)+'X','a = intersep, b = kemiringan']
+]};
+
+var last=[];
+function plot(x,y,s){
+  var all=x.concat(y),lo=Math.min.apply(null,all),hi=Math.max.apply(null,all);
+  if(lo===hi){lo-=1;hi+=1}
+  var pad=(hi-lo)*.06;lo-=pad;hi+=pad;
+  var L=44,R=14,T=14,B=36,W=400,H=400;
+  var sx=function(v){return L+(v-lo)/(hi-lo)*(W-L-R)};
+  var sy=function(v){return H-B-(v-lo)/(hi-lo)*(H-T-B)};
+  var g='',i,tk=4;
+  for(i=0;i<=tk;i++){
+    var v=lo+(hi-lo)*i/tk,t=v.toLocaleString('id-ID',{maximumFractionDigits:2});
+    g+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+sy(v)+'" y2="'+sy(v)+'" stroke="var(--line)"/>';
+    g+='<text x="'+(L-6)+'" y="'+(sy(v)+4)+'" text-anchor="end" font-size="11" fill="var(--mute)">'+t+'</text>';
+    g+='<text x="'+sx(v)+'" y="'+(H-B+16)+'" text-anchor="middle" font-size="11" fill="var(--mute)">'+t+'</text>';
+  }
+  g+='<text x="'+((L+W-R)/2)+'" y="'+(H-4)+'" text-anchor="middle" font-size="12" fill="var(--ink)">Observasi (X)</text>';
+  g+='<text transform="translate(12 '+((T+H-B)/2)+') rotate(-90)" text-anchor="middle" font-size="12" fill="var(--ink)">Prediksi (Y)</text>';
+  g+='<line x1="'+sx(lo)+'" y1="'+sy(lo)+'" x2="'+sx(hi)+'" y2="'+sy(hi)+'" stroke="var(--mute)" stroke-dasharray="5 4"/>';
+  if(isFinite(s.b))g+='<line x1="'+sx(lo)+'" y1="'+sy(s.a+s.b*lo)+'" x2="'+sx(hi)+'" y2="'+sy(s.a+s.b*hi)+'" stroke="var(--acc2)" stroke-width="2"/>';
+  for(i=0;i<x.length;i++)g+='<circle cx="'+sx(x[i])+'" cy="'+sy(y[i])+'" r="4" fill="var(--acc)" fill-opacity=".75"/>';
+  $('sv').innerHTML=g;
+}
+
+function run(){
+  var msg=$('msg'),out=$('out');msg.textContent='';
+  var xt=$('x').value,yt=$('y').value;
+  if(!yt.trim()&&/\t/.test(xt)){
+    var X=[],Y=[];
+    xt.split(/\n/).forEach(function(l){var p=l.split(/\t/);if(p.length>1){X.push(p[0]);Y.push(p[1])}});
+    xt=X.join('\n');yt=Y.join('\n');$('x').value=xt;$('y').value=yt;
+  }
+  if(!xt.trim()&&!yt.trim()){out.hidden=true;return}
+  var px=parse(xt),py=parse(yt);
+  if(px.bad||py.bad){msg.textContent='Ada '+(px.bad+py.bad)+' entri yang bukan angka. Periksa kembali data Anda.';out.hidden=true;return}
+  if(px.a.length!==py.a.length){msg.textContent='Jumlah data berbeda: X berisi '+px.a.length+' angka, Y berisi '+py.a.length+'. Samakan jumlahnya.';out.hidden=true;return}
+  if(px.a.length<2){msg.textContent='Masukkan minimal 2 pasang data.';out.hidden=true;return}
+  var s=stats(px.a,py.a);
+  if(!isFinite(s.r)){msg.textContent='Semua nilai X atau semua nilai Y sama, jadi korelasi tidak dapat dihitung.'}
+  last=rows(s);
+  $('hr').textContent=fmt(s.r);
+  $('tb').innerHTML=last.map(function(r){return '<tr><td>'+r[0]+'</td><td class="v">'+r[1]+'</td><td class="f">'+r[2]+'</td></tr>'}).join('');
+  plot(px.a,py.a,s);
+  out.hidden=false;
+}
+
+$('hit').onclick=run;
+$('x').addEventListener('input',run);
+$('y').addEventListener('input',run);
+$('ex').onclick=function(){
+  $('x').value='12,5\n14,1\n15,8\n17,2\n18,9\n20,4\n22,0\n23,7';
+  $('y').value='12,9\n13,6\n16,2\n17,9\n18,3\n21,1\n22,8\n23,2';
+  run();
+};
+$('clr').onclick=function(){$('x').value='';$('y').value='';$('msg').textContent='';$('out').hidden=true};
+$('cp').onclick=function(){
+  if(!last.length){$('msg').textContent='Belum ada hasil untuk disalin.';return}
+  var t=last.map(function(r){return r[0]+'\t'+r[1]}).join('\n'),b=$('cp');
+  var done=function(){b.textContent='Tersalin';setTimeout(function(){b.textContent='Salin hasil'},1500)};
+  try{navigator.clipboard.writeText(t).then(done,function(){fb(t,done)})}catch(e){fb(t,done)}
+};
+function fb(t,done){
+  var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();
+  try{document.execCommand('copy');done()}catch(e){}
+  document.body.removeChild(a);
+}
+})();
+</script>
+</body>
+</html>
